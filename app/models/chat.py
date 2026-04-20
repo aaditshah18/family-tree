@@ -5,6 +5,7 @@ from sqlalchemy.sql import func
 import uuid
 
 from app.models.base import Base
+from app.models.enums import ChatSessionStatus
 
 
 class ChatSession(Base):
@@ -17,12 +18,17 @@ class ChatSession(Base):
         UUID(as_uuid=True), ForeignKey("family_members.id"), nullable=False
     )
     title: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    status: Mapped[str] = mapped_column(String(20), nullable=False, default="active")
+    status: Mapped[str] = mapped_column(
+        String(20), nullable=False, default=ChatSessionStatus.ACTIVE.value
+    )
     created_at: Mapped[DateTime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
     updated_at: Mapped[DateTime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
     )
 
     __table_args__ = (
@@ -53,5 +59,11 @@ class ChatMessage(Base):
     )
 
     __table_args__ = (
+        Index(
+            "uq_chat_messages_session_sequence",
+            "session_id",
+            "sequence_order",
+            unique=True,
+        ),
         Index("ix_chat_messages_session_sequence", "session_id", "sequence_order"),
     )

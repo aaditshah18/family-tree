@@ -17,3 +17,8 @@ class MessageRole(str, enum.Enum):
     USER = "user"
     ASSISTANT = "assistant"
     TOOL = "tool"
+
+
+class ChatSessionStatus(str, enum.Enum):
+    ACTIVE = "active"
+    ARCHIVED = "archived"

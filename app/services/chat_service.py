@@ -1,7 +1,7 @@
 from uuid import UUID
-from datetime import datetime, timezone
 
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.chat import ChatMessage, ChatSession
@@ -13,7 +13,6 @@ class ChatService:
         session = ChatSession(
             anchor_member_id=data.anchor_member_id,
             title=data.title,
-            status="active",
         )
         db.add(session)
         await db.commit()
@@ -37,12 +36,10 @@ class ChatService:
         if session is None:
             return None
 
-        update_data = data.model_dump(exclude_unset=True)
-        if "title" in update_data:
-            session.title = update_data["title"]
-        if "status" in update_data:
-            session.status = update_data["status"]
-        session.updated_at = datetime.now(timezone.utc)
+        if "title" in data.model_fields_set:
+            session.title = data.title
+        if "status" in data.model_fields_set and data.status is not None:
+            session.status = data.status.value
 
         await db.commit()
         await db.refresh(session)
@@ -51,27 +48,40 @@ class ChatService:
     async def add_message(
         self, db: AsyncSession, session_id: UUID, data: ChatMessageCreate
     ) -> ChatMessage:
-        stmt = select(func.max(ChatMessage.sequence_order)).where(
-            ChatMessage.session_id == session_id
-        )
-        result = await db.execute(stmt)
-        next_sequence_order = (result.scalar() or 0) + 1
+        for _ in range(3):
+            await db.execute(
+                select(ChatSession.id)
+                .where(ChatSession.id == session_id)
+                .with_for_update()
+            )
 
-        message = ChatMessage(
-            session_id=session_id,
-            role=data.role,
-            content=data.content,
-            tool_call_data=data.tool_call_data,
-            query_type=data.query_type,
-            falkordb_query=data.falkordb_query,
-            llm_model=data.llm_model,
-            token_count=data.token_count,
-            sequence_order=next_sequence_order,
-        )
-        db.add(message)
-        await db.commit()
-        await db.refresh(message)
-        return message
+            stmt = select(func.max(ChatMessage.sequence_order)).where(
+                ChatMessage.session_id == session_id
+            )
+            result = await db.execute(stmt)
+            next_sequence_order = (result.scalar() or 0) + 1
+
+            message = ChatMessage(
+                session_id=session_id,
+                role=data.role.value,
+                content=data.content,
+                tool_call_data=data.tool_call_data,
+                query_type=data.query_type,
+                falkordb_query=data.falkordb_query,
+                llm_model=data.llm_model,
+                token_count=data.token_count,
+                sequence_order=next_sequence_order,
+            )
+            db.add(message)
+
+            try:
+                await db.commit()
+                await db.refresh(message)
+                return message
+            except IntegrityError:
+                await db.rollback()
+
+        raise RuntimeError("Failed to persist chat message after multiple retries")
 
     async def get_messages(
         self, db: AsyncSession, session_id: UUID

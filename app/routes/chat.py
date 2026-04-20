@@ -5,7 +5,6 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.postgres import get_session
-from app.models.enums import MessageRole
 from app.models.member import FamilyMember
 from app.schemas.chat import (
     ChatMessageCreate,
@@ -18,27 +17,6 @@ from app.services.chat_service import ChatService
 
 router = APIRouter(prefix="/chat/sessions", tags=["chat"])
 chat_service = ChatService()
-
-VALID_SESSION_STATUSES = {"active", "archived"}
-VALID_MESSAGE_ROLES = {role.value for role in MessageRole}
-
-
-def _validate_session_status(status_value: str | None) -> None:
-    if status_value is None:
-        return
-    if status_value not in VALID_SESSION_STATUSES:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid status. Must be one of: active, archived",
-        )
-
-
-def _validate_message_role(role_value: str) -> None:
-    if role_value not in VALID_MESSAGE_ROLES:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid role. Must be one of: user, assistant, tool",
-        )
 
 
 @router.post("", response_model=ChatSessionResponse, status_code=status.HTTP_201_CREATED)
@@ -85,8 +63,6 @@ async def update_chat_session(
     payload: ChatSessionUpdate,
     db: AsyncSession = Depends(get_session),
 ) -> ChatSessionResponse:
-    _validate_session_status(payload.status)
-
     session = await chat_service.update_session(db, id, payload)
     if session is None:
         raise HTTPException(
@@ -105,8 +81,6 @@ async def create_chat_message(
     payload: ChatMessageCreate,
     db: AsyncSession = Depends(get_session),
 ) -> ChatMessageResponse:
-    _validate_message_role(payload.role)
-
     session = await chat_service.get_session(db, id)
     if session is None:
         raise HTTPException(

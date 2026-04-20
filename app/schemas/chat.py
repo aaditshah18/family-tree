@@ -3,6 +3,9 @@ from uuid import UUID
 
 from pydantic import BaseModel
 
+from app.models.enums import ChatSessionStatus, MessageRole
+
+
 class ChatSessionCreate(BaseModel):
     anchor_member_id: UUID
     title: str | None = None
@@ -10,7 +13,7 @@ class ChatSessionCreate(BaseModel):
 
 class ChatSessionUpdate(BaseModel):
     title: str | None = None
-    status: str | None = None
+    status: ChatSessionStatus | None = None
 
 
 class ChatSessionResponse(BaseModel):
@@ -25,7 +28,7 @@ class ChatSessionResponse(BaseModel):
 
 
 class ChatMessageCreate(BaseModel):
-    role: str
+    role: MessageRole
     content: str
     tool_call_data: dict | None = None
     query_type: str | None = None
