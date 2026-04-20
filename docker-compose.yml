@@ -1,0 +1,29 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: family_tree_postgres
+    environment:
+      POSTGRES_DB: family_tree
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d family_tree"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  falkordb:
+    image: falkordb/falkordb:latest
+    container_name: family_tree_falkordb
+    ports:
+      - "6379:6379"
+    volumes:
+      - falkordb_data:/data
+
+volumes:
+  postgres_data:
+  falkordb_data:

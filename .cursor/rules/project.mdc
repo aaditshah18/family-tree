@@ -1,0 +1,147 @@
+---
+description: Core project rules and context for the Family Tree API — always apply
+alwaysApply: true
+---
+
+# Family Tree API — Cursor Rules
+
+## Project Overview
+FastAPI backend for a family tree application with dual-write persistence:
+- **PostgreSQL** (source of truth) — all structured data
+- **FalkorDB** (graph layer) — synced asynchronously for graph traversal queries
+- **LangGraph + Gemini** (agent layer, WIP) — natural-language query interface over the graph
+
+## Tech Stack
+- Python 3.13.9
+- FastAPI — async/await throughout, no sync endpoints
+- SQLAlchemy 2.0 async + asyncpg driver
+- Alembic for migrations
+- Pydantic v2 for schemas
+- FalkorDB — Redis-compatible graph DB, Cypher query language
+- LangGraph + langchain-google-genai
+- pydantic-settings + python-dotenv
+- uvicorn as ASGI server
+- uv for dependency management (pyproject.toml + uv.lock, all versions pinned ==)
+- Docker Compose: postgres:16 + falkordb/falkordb:latest
+
+## Project Structure
+```
+app/
+├── main.py               # FastAPI app, lifespan (connects Postgres + FalkorDB)
+├── config.py             # Settings via pydantic-settings, reads .env
+├── models/
+│   ├── base.py           # DeclarativeBase only
+│   ├── enums.py          # RelationshipType, SyncStatus, MessageRole
+│   ├── member.py         # FamilyMember
+│   ├── relationship.py   # FamilyRelationship
+│   ├── chat.py           # ChatSession, ChatMessage
+│   └── operational.py    # SyncLog, LlmAuditLog
+├── schemas/              # Pydantic v2 request/response schemas
+├── db/
+│   ├── postgres.py       # async engine, session factory, get_session dep
+│   └── falkordb.py       # FalkorDB client wrapper (connect/disconnect)
+├── services/
+│   ├── member_service.py      # CRUD against Postgres — IMPLEMENTED
+│   ├── relationship_service.py — IMPLEMENTED
+│   ├── sync_service.py        # Dual-write to FalkorDB, retry — IMPLEMENTED
+│   └── chat_service.py        # STUB
+├── routes/
+│   ├── members.py        # POST/GET /api/v1/members — IMPLEMENTED
+│   ├── relationships.py  # POST/GET /api/v1/relationships — IMPLEMENTED
+│   └── chat.py           # STUB
+└── agent/                # ALL STUBS — LangGraph agent not yet implemented
+alembic/                  # Migration scripts — never hand-edit
+docker-compose.yml
+pyproject.toml
+```
+
+## Critical Rules — Always Follow
+
+### Never modify these
+- `app/models/*.py` — models are frozen; add migrations instead
+- `alembic/versions/*.py` — migration files are immutable once generated
+
+### Async is mandatory
+- Every DB call must be `await`
+- Every route handler must be `async def`
+- FalkorDB client is synchronous — always wrap in `asyncio.to_thread(graph.query, cypher, params)`
+- Use `async with async_session_factory() as db:` in background tasks (not `Depends`)
+
+### Routes must be thin
+- No `select()` or DB logic in route handlers
+- Routes call service methods, handle HTTP errors, fire background tasks — nothing else
+
+### Sync failures are silent
+- Background sync tasks catch all exceptions and write to `sync_log`
+- Never let sync failure propagate to the HTTP response
+
+### Logging
+- No `print()` — use `logging.getLogger(__name__)`
+
+### Dependencies
+- Add with `uv add package==x.y.z` — never manually edit uv.lock
+- All versions must be pinned `==` — no `>=` or `~=`
+
+## Patterns to Follow
+
+### New endpoint
+1. Schema in `app/schemas/<domain>.py`
+2. Service method in `app/services/<domain>_service.py`
+3. Route in `app/routes/<domain>.py` (thin)
+4. If write → fire BackgroundTask to sync_service
+
+### New migration
+```bash
+uv run alembic revision --autogenerate -m "describe_change"
+# Review before committing
+uv run alembic upgrade head
+```
+
+### Session in routes
+```python
+db: AsyncSession = Depends(get_session)
+```
+
+### Session in background tasks
+```python
+async with async_session_factory() as db:
+    ...
+```
+
+### FalkorDB query
+```python
+graph = falkordb_db.get_client().select_graph("family_tree")
+await asyncio.to_thread(graph.query, cypher_string, params_dict)
+```
+
+## FalkorDB Graph Schema
+```
+(:Person {id: uuid_str, first_name, last_name})
+(:Person)-[:PARENT_OF|SPOUSE_OF|SIBLING_OF]->(:Person)
+```
+- Graph name: `"family_tree"`
+- Use `MERGE` for nodes (idempotent)
+- Relationship type is dynamic — f-string into Cypher, NOT a query parameter
+
+## Error Response Conventions
+| Code | Cause |
+|---|---|
+| 400 | Self-relationship, duplicate UniqueConstraint violation |
+| 404 | Member or relationship not found |
+| 500 | Unexpected DB error (let FastAPI default handler) |
+
+Catch `IntegrityError` from SQLAlchemy for constraint violations — rollback session then raise HTTPException.
+
+## Environment Variables
+
+## Dev Commands
+```bash
+uv sync                              # install deps
+docker compose up -d                 # start infra
+uv run alembic upgrade head          # run migrations
+uv run uvicorn app.main:app --reload # start server → Swagger at /docs
+```
+
+## What Is and Isn't Implemented
+DONE: Members CRUD, Relationships CRUD, FalkorDB dual-write sync with 3-retry logic, sync_log writes
+STUBS (do not assume logic exists): chat_service.py, routes/chat.py, all of app/agent/
