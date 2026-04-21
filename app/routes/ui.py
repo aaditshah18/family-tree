@@ -9,9 +9,9 @@ router = APIRouter(tags=["ui"])
 
 @router.get("/", response_class=HTMLResponse)
 async def index(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+    return templates.TemplateResponse(request=request, name="index.html")
 
 
 @router.get("/sync-log", response_class=HTMLResponse)
 async def sync_log(request: Request):
-    return templates.TemplateResponse("sync_log.html", {"request": request})
+    return templates.TemplateResponse(request=request, name="sync_log.html")
