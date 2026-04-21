@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Family Tree{% endblock %}</title>
+    <link rel="stylesheet" href="https://unpkg.com/mvp.css">
+    <script src="https://unpkg.com/htmx.org@1.9.10/dist/htmx.min.js" defer></script>
+</head>
+<body>
+    <header>
+        <nav>
+            <a href="/"><b>Family Tree</b></a>
+            <ul>
+                <li><a href="/">Add Data</a></li>
+                <li><a href="/sync-log">Sync Log</a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+</body>
+</html>
