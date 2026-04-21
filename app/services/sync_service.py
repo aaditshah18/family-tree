@@ -95,10 +95,15 @@ async def sync_relationship_to_knowledge_graph(relationship_id: UUID) -> None:
                     raise ValueError(f"Relationship {relationship_id} not found in Postgres")
 
             graph = falkordb_db.get_client().select_graph("family_tree")
+            # MERGE nodes so edge creation succeeds even if member sync
+            # hasn't run yet (background tasks race each other).
             cypher = (
-                f"MATCH (a:Person {{id: $id1}}), (b:Person {{id: $id2}}) "
+                f"MERGE (a:Person {{id: $id1}}) "
+                f"MERGE (b:Person {{id: $id2}}) "
                 f"CREATE (a)-[:{rel.relationship_type}]->(b)"
             )
+            if rel.bidirectional:
+                cypher += f" CREATE (b)-[:{rel.relationship_type}]->(a)"
             await asyncio.to_thread(
                 graph.query,
                 cypher,

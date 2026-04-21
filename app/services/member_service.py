@@ -1,7 +1,7 @@
 from uuid import UUID
 
 from fastapi import HTTPException
-from sqlalchemy import select
+from sqlalchemy import select, or_, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.member import FamilyMember
@@ -33,6 +33,19 @@ class MemberService:
         result = await db.execute(select(FamilyMember).where(FamilyMember.id == member_id))
         return result.scalar_one_or_none()
 
-    async def get_all_members(self, db: AsyncSession) -> list[FamilyMember]:
-        result = await db.execute(select(FamilyMember))
+    async def get_all_members(
+        self, db: AsyncSession, search: str | None = None
+    ) -> list[FamilyMember]:
+        query = select(FamilyMember)
+        if search:
+            term = f"%{search}%"
+            full_name = func.concat(FamilyMember.first_name, " ", FamilyMember.last_name)
+            query = query.where(
+                or_(
+                    FamilyMember.first_name.ilike(term),
+                    FamilyMember.last_name.ilike(term),
+                    full_name.ilike(term),
+                )
+            )
+        result = await db.execute(query)
         return list(result.scalars().all())

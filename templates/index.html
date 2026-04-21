@@ -5,9 +5,109 @@
 {% block content %}
 <section id="members-section">
     <h2>Add Member</h2>
+    <form hx-post="/api/v1/members"
+          hx-target="#member-result"
+          hx-swap="innerHTML"
+          hx-ext="json-enc">
+        <label>First Name*
+            <input type="text" name="first_name" required>
+        </label>
+        <label>Last Name*
+            <input type="text" name="last_name" required>
+        </label>
+        <label>Gender
+            <select name="gender">
+                <option value="">— select —</option>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+                <option value="Other">Other</option>
+            </select>
+        </label>
+        <label>Date of Birth
+            <input type="text" name="date_of_birth" placeholder="YYYY-MM-DD" pattern="\d{4}-\d{2}-\d{2}">
+        </label>
+        <label>Birthplace
+            <input type="text" name="birthplace">
+        </label>
+        <label>Notes
+            <textarea name="notes" rows="3"></textarea>
+        </label>
+        <button type="submit">Add Member</button>
+    </form>
+    <div id="member-result"></div>
 </section>
 
 <section id="relationships-section">
     <h2>Add Relationship</h2>
+    <form id="rel-form"
+          hx-post="/api/v1/relationships"
+          hx-target="#rel-result"
+          hx-swap="innerHTML"
+          hx-ext="json-enc">
+
+        <!-- Member 1 picker -->
+        <label>Member 1*
+            <input type="text"
+                   id="search-input-1"
+                   placeholder="Search by name…"
+                   autocomplete="off"
+                   oninput="searchMember(1, this.value)">
+        </label>
+        <div id="search-results-1"></div>
+        <small id="display-1" style="color:#22c55e"></small>
+        <input type="hidden" name="member_id_1" id="member_id_1">
+
+        <!-- Member 2 picker -->
+        <label>Member 2*
+            <input type="text"
+                   id="search-input-2"
+                   placeholder="Search by name…"
+                   autocomplete="off"
+                   oninput="searchMember(2, this.value)">
+        </label>
+        <div id="search-results-2"></div>
+        <small id="display-2" style="color:#22c55e"></small>
+        <input type="hidden" name="member_id_2" id="member_id_2">
+
+        <label>Relationship Type*
+            <select name="relationship_type" required>
+                <option value="">— select —</option>
+                <option value="PARENT_OF">PARENT_OF</option>
+                <option value="SPOUSE_OF">SPOUSE_OF</option>
+                <option value="SIBLING_OF">SIBLING_OF</option>
+            </select>
+        </label>
+
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+            <input type="checkbox" name="bidirectional" value="true" style="width:auto;margin:0">
+            Bidirectional
+            <small style="color:#9ca3af">(creates edge in both directions in the graph)</small>
+        </label>
+
+        <button type="submit">Add Relationship</button>
+    </form>
+    <div id="rel-result"></div>
 </section>
+
+<script>
+    let searchTimers = {};
+
+    function searchMember(slot, query) {
+        clearTimeout(searchTimers[slot]);
+        document.getElementById('display-' + slot).textContent = '';
+        document.getElementById('member_id_' + slot).value = '';
+
+        if (!query) {
+            document.getElementById('search-results-' + slot).innerHTML = '';
+            return;
+        }
+
+        searchTimers[slot] = setTimeout(function () {
+            htmx.ajax('GET', '/members/search?q=' + encodeURIComponent(query) + '&slot=member_id_' + slot, {
+                target: '#search-results-' + slot,
+                swap: 'innerHTML'
+            });
+        }, 300);
+    }
+</script>
 {% endblock %}

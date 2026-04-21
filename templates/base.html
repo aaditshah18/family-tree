@@ -5,7 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Family Tree{% endblock %}</title>
     <link rel="stylesheet" href="https://unpkg.com/mvp.css">
-    <script src="https://unpkg.com/htmx.org@1.9.10/dist/htmx.min.js" defer></script>
+    <script src="https://unpkg.com/htmx.org@1.9.10/dist/htmx.min.js"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.10/dist/ext/json-enc.js"></script>
 </head>
 <body>
     <header>
@@ -20,5 +21,57 @@
     <main>
         {% block content %}{% endblock %}
     </main>
+
+    <script>
+        // Member picker — called from search result buttons in the partial.
+        function selectMember(slot, uuid, label) {
+            document.getElementById(slot).value = uuid;
+            const slotNum = slot === 'member_id_1' ? '1' : '2';
+            document.getElementById('display-' + slotNum).textContent = '✓ ' + label;
+            document.getElementById('search-results-' + slotNum).innerHTML = '';
+        }
+
+        // Strip empty optional fields so they serialize as null (not "") in JSON.
+        // Also coerce checkbox "true"/"false" strings to booleans.
+        document.body.addEventListener('htmx:configRequest', function (evt) {
+            const params = evt.detail.parameters;
+            Object.keys(params).forEach(function (k) {
+                if (params[k] === '') delete params[k];
+                else if (params[k] === 'true') params[k] = true;
+                else if (params[k] === 'false') params[k] = false;
+            });
+        });
+
+        // Intercept all HTMX responses before swap.
+        // API returns JSON; convert to formatted HTML before HTMX swaps it in.
+        document.body.addEventListener('htmx:beforeSwap', function (evt) {
+            const xhr = evt.detail.xhr;
+            const target = evt.detail.target;
+
+            try {
+                const data = JSON.parse(xhr.responseText);
+
+                // Force swap even on error responses (HTMX skips swap on 4xx/5xx by default)
+                evt.detail.shouldSwap = true;
+
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    if (target.id === 'member-result') {
+                        evt.detail.serverResponse =
+                            `<p style="color:green">&#10003; Created: ${data.first_name} ${data.last_name} (id: ${data.id})</p>`;
+                    } else if (target.id === 'rel-result') {
+                        evt.detail.serverResponse =
+                            `<p style="color:green">&#10003; Relationship created (id: ${data.id})</p>`;
+                    }
+                } else {
+                    const detail = Array.isArray(data.detail)
+                        ? data.detail.map(e => e.msg).join(', ')
+                        : (data.detail || 'An error occurred');
+                    evt.detail.serverResponse = `<p style="color:red">&#10007; ${detail}</p>`;
+                }
+            } catch (_) {
+                // Non-JSON response — leave HTMX to handle it normally
+            }
+        });
+    </script>
 </body>
 </html>

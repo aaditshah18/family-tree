@@ -4,6 +4,40 @@
 
 {% block content %}
 <section id="sync-log-section">
-    <h2>Sync Log</h2>
+    <h2>
+        Sync Log
+        <button
+            style="background:none;border:none;cursor:pointer;font-size:1.2rem;vertical-align:middle;margin-left:0.5rem"
+            title="Refresh"
+            hx-get="/sync-log/table"
+            hx-target="#log-table"
+            hx-swap="innerHTML"
+            hx-include="#status-filter">
+            &#x21BB;
+        </button>
+    </h2>
+
+    <label>
+        Filter by status
+        <select id="status-filter"
+                name="status"
+                hx-get="/sync-log/table"
+                hx-target="#log-table"
+                hx-swap="innerHTML"
+                hx-trigger="change">
+            <option value="">all</option>
+            <option value="pending">pending</option>
+            <option value="success">success</option>
+            <option value="failed">failed</option>
+            <option value="dead_letter">dead_letter</option>
+        </select>
+    </label>
+
+    <div id="log-table"
+         hx-get="/sync-log/table"
+         hx-trigger="load"
+         hx-swap="innerHTML">
+        <p style="color:#9ca3af">Loading…</p>
+    </div>
 </section>
 {% endblock %}

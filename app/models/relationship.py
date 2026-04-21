@@ -1,4 +1,4 @@
-from sqlalchemy import String, Date, DateTime, ForeignKey, UniqueConstraint, CheckConstraint, Index
+from sqlalchemy import String, Boolean, DateTime, ForeignKey, UniqueConstraint, CheckConstraint, Index
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
@@ -20,8 +20,7 @@ class FamilyRelationship(Base):
         UUID(as_uuid=True), ForeignKey("family_members.id"), nullable=False
     )
     relationship_type: Mapped[str] = mapped_column(String(50), nullable=False)
-    start_date: Mapped[Date | None] = mapped_column(Date, nullable=True)
-    end_date: Mapped[Date | None] = mapped_column(Date, nullable=True)
+    bidirectional: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     created_at: Mapped[DateTime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
