@@ -5,7 +5,8 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
 from app.db import postgres, falkordb
-from app.routes import members, relationships, chat, ui
+from app.routes import api_router
+from app.routes import ui
 
 
 @asynccontextmanager
@@ -21,13 +22,11 @@ app = FastAPI(title="Family Tree API", version="1.0.0", lifespan=lifespan)
 if Path("static").is_dir():
     app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# UI routes first — no prefix
+# UI routes — no prefix
 app.include_router(ui.router)
 
-# API routes
-app.include_router(members.router, prefix="/api/v1")
-app.include_router(relationships.router, prefix="/api/v1")
-app.include_router(chat.router, prefix="/api/v1")
+# API routes — all under /api/v1
+app.include_router(api_router)
 
 
 @app.get("/health")

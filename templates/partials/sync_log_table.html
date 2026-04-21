@@ -1,0 +1,41 @@
+{% if rows %}
+<table>
+    <thead>
+        <tr>
+            <th>Entity Type</th>
+            <th>Entity ID</th>
+            <th>Operation</th>
+            <th>Status</th>
+            <th>Attempts</th>
+            <th>Last Error</th>
+            <th>Created At</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for row in rows %}
+        {% set badge_colors = {
+            'success':     'background:#22c55e;color:#fff',
+            'failed':      'background:#f97316;color:#fff',
+            'pending':     'background:#9ca3af;color:#fff',
+            'dead_letter': 'background:#ef4444;color:#fff'
+        } %}
+        <tr>
+            <td>{{ row.entity_type }}</td>
+            <td title="{{ row.entity_id }}">{{ row.entity_id | string | truncate(8, end='') }}</td>
+            <td>{{ row.operation }}</td>
+            <td>
+                <span style="padding:2px 8px;border-radius:4px;font-size:0.8em;
+                             {{ badge_colors.get(row.status, 'background:#9ca3af;color:#fff') }}">
+                    {{ row.status }}
+                </span>
+            </td>
+            <td>{{ row.attempts }}</td>
+            <td>{{ row.last_error or '—' }}</td>
+            <td>{{ row.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p style="color:#9ca3af">No records found.</p>
+{% endif %}
