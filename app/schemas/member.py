@@ -3,11 +3,13 @@ from uuid import UUID
 
 from pydantic import BaseModel
 
+from app.models.enums import Gender
+
 
 class FamilyMemberBase(BaseModel):
     first_name: str
     last_name: str
-    gender: str | None = None
+    gender: Gender | None = None
     date_of_birth: date | None = None
     date_of_death: date | None = None
     birthplace: str | None = None
@@ -21,7 +23,7 @@ class FamilyMemberCreate(FamilyMemberBase):
 class FamilyMemberUpdate(BaseModel):
     first_name: str | None = None
     last_name: str | None = None
-    gender: str | None = None
+    gender: Gender | None = None
     date_of_birth: date | None = None
     date_of_death: date | None = None
     birthplace: str | None = None

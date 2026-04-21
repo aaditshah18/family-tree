@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.postgres import get_session
@@ -24,8 +24,11 @@ async def create_member(
 
 
 @router.get("", response_model=list[FamilyMemberResponse])
-async def list_members(db: AsyncSession = Depends(get_session)):
-    return await _svc.get_all_members(db)
+async def list_members(
+    search: str | None = Query(default=None, description="Filter by first_name, last_name, or full_name"),
+    db: AsyncSession = Depends(get_session),
+):
+    return await _svc.get_all_members(db, search=search)
 
 
 @router.get("/{member_id}", response_model=FamilyMemberResponse)
